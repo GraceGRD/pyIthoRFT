@@ -13,6 +13,7 @@ The primary objective of this project is to seamlessly integrate the Itho Heat-R
 - Pairing with the HRU using a randomly generated `remote_address`.
 - Saving and loading the paired `remote_address` and `unit_address`.
 - Sending remote commands (`auto`, `low`, `high`, and `timer10/20/30`).
+- Parsing HRU data such as `active_speed_mode`, `temperature`, `fault_active` and `filter_dirty`)
 - Logging gateway data to `remote.log`.
 
 **Upcoming steps:**
