@@ -1,12 +1,15 @@
-# IthoRemoteRFT
+# pyIthoRFT
 
-Itho RFT AUTO (536-0150) Virtual Remote Using the [evofw3 Gateway by ghoti57](https://github.com/ghoti57/evofw3).
+Python3 library for Itho RFT
+
+Controls Itho ventilation boxes / Heat Recovery Units (HRU).
 
 This project was developed during my free time, and contributions are welcome.
 
 ## Overview
+This library emulates the Itho RFT AUTO (536-0150) remote using the [evofw3 Gateway by ghoti57](https://github.com/ghoti57/evofw3) allowing the control of Itho ventilation / HRU units.
 
-The primary objective of this project is to seamlessly integrate the Itho Heat-Recovery-Unit (HRU) with Home Assistant by emulating an RFT remote. This integration enables control of the HRU installation without disrupting the functionality of paired physical remotes. Unlike some other solutions that copy IDs from paired physical remotes, potentially causing odd behavior, this project ensures smooth operation.
+The primary objective for this library is to be integrated with Home Assistant as a custom_component. 
 
 **The supported functionality includes:**
 
@@ -18,8 +21,7 @@ The primary objective of this project is to seamlessly integrate the Itho Heat-R
 
 **Upcoming steps:**
 
-- Creation of a Python library package for easy installation via pip.
-- Integration of the library into Home Assistant or HACS (Home Assistant Community Store).
+- Integration of the library into Home Assistant or HACS (Home Assistant Community Store) -> work-in-progress.
 
 ## Setup
 
@@ -29,6 +31,16 @@ The gateway I employ is a DIY homemade setup, comprising an **Arduino Pro Micro 
 
 Make sure your software version is at least **v0.7.0** or later.
 
-Please note that this implementation has been tested on the **Itho HRU ECO300** model.
+Please note that this implementation has only been tested on the **Itho HRU ECO300** model.
 
 Feel free to let me know if you have any further questions or need assistance with anything else!
+
+## Install
+```
+pip3 install pyIthoRFT
+```
+
+## Example:
+```
+TODO
+```

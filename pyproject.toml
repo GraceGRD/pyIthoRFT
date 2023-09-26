@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyIthoRFT"
+version = "0.0.1"
+authors = [
+  { name="GraceGRD", email="123941606+GraceGRD@users.noreply.github.com" },
+]
+description = "A python3 library to emulate an IthoRFT remote"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyserial >= 3.5"
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Home Automation",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/GraceGRD/pyIthoRFT"
+"Bug Tracker" = "https://github.com/GraceGRD/pyIthoRFT/issues"
