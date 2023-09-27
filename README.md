@@ -1,5 +1,8 @@
 # pyIthoRFT
 
+[![PyPI version](https://badge.fury.io/py/pyIthoRFT.svg)](https://badge.fury.io/py/pyIthoRFT) 
+<a href="https://github.com/ambv/black/blob/master/LICENSE"><img alt="License: MIT" src="https://black.readthedocs.io/en/stable/_static/license.svg"></a>
+
 Python3 library for Itho RFT
 
 Controls Itho ventilation boxes / Heat Recovery Units (HRU).
