@@ -1,11 +1,18 @@
 """Itho RFT Remote."""
 import datetime
+import logging
 import random
 import asyncio
 import time
 import re
 import json
 import serial
+
+from IthoRFT.const import TIMEOUT_SELF_TEST, TIMEOUT_PAIRING
+# from .const import TIMEOUT_SELF_TEST, TIMEOUT_PAIRING
+
+_LOGGER = logging.getLogger(__name__)
+
 
 # Device Address is build as follows:
 # 0x743039 -> 29:012345
@@ -18,46 +25,51 @@ class IthoRemoteGatewayError(Exception):
 
 
 class IthoRFTRemote:
-    """Instance ofItho RFT Remote."""
+    """Instance of Itho RFT Remote."""
 
-    def __init__(self, port="COM3", baud=115200):
-        """Add incoming data to buffer."""
-        print("__init__")
+    def __init__(
+            self,
+            port: str = "COM3",
+            baud: int = 115200,
+            remote_address: str | None = None,
+            unit_address: str | None = None
+    ):
+        """Initialise the Itho RFT Remote connection.
+        :param port: The port to access the evofw3 gateway.
+        :param baud: The evofw3 baud rate.
+        :param remote_address: The virtual address off the remote (if not provided a random address is generated).
+        :param unit_address: The unit address which is obtained during pairing."""
 
-        # Serial Port
         self.port = port
         self.baud = baud
-        self.timeout = 0  # Non-blocking IO
+        self.remote_address = remote_address
+        self.unit_address = unit_address
+
+        _LOGGER.debug(
+            f"Itho RFT Remote initialized with the following settings:\n"
+            f"  Port: {self.port}\n"
+            f"  Baud Rate: {self.baud}\n"
+            f"  Remote Address: {self.remote_address}\n"
+            f"  Unit Address: {self.unit_address}"
+        )
+
         self.serial_connection = None
-        self.buffer = bytes()
-
-        # Data / Callback
         self.task = None
-        self.data = []
         self.data_callback = None
-
-        # Version
-        self.evofw3_min_version = "0.7.0"
-        self.evofw3_version = None
-        self.log_to_file = True
-
-        # Addresses
-        self.remote_address = None
-        self.unit_address = None
-        # TODO: Sequence number is checked by the Itho machine!
-        #  (000 is send after battery swap, so this should be fine)
-        self.sequence_number = 0
-
-        # Task variables
+        self.pair_callback = None
+        self.data = []
         self.is_pairing = False
         self.pairing_timeout = 0
 
-        # TODO TEMP Read remote_address and unit_address from config file.
-        self._config_load()
-        self.remote_address = "29:012345"
-        self.unit_address = "18:126620"
+        # TODO: Sequence number is checked by the Itho machine!
+        #  (000 is send after battery swap, so 0 should be fine)
+        self.sequence_number = 0
 
-        # Randomly initialise Remote Address when not configured (e.g. 29:012345 & 0x743039)
+        # TODO TEMP Read remote_address and unit_address from config file.
+        self.log_to_file = True
+        # self._config_load()
+
+        # Randomise Remote Address when not configured (e.g. 29:012345 & 0x743039)
         if self.remote_address is None:
             self.remote_address = f"29:{random.randint(0, 999999):06d}"
 
@@ -66,24 +78,23 @@ class IthoRFTRemote:
             if self.unit_address
             else "Remote not paired"
         )
-        print(
-            f"IthoRemoteRFT init OK:\n\r"
+        _LOGGER.debug(
+            f"Init OK:\n\r"
             f" Remote address:   {self.remote_address}\n\r"
             f" {unit_address_info}"
         )
 
         if not self.serial_connection:
+            # Serial in non-blocking IO mode
             self.serial_connection = serial.Serial(
-                self.port, self.baud, timeout=self.timeout
+                self.port, self.baud, timeout=0
             )
-            print("IthoRemoteRFT started")
-
-        # Self-test
-        # self.self_test(self.evofw3_min_version)
+            _LOGGER.debug("Started")
 
     def _config_load(self):
-        """Load configuration from the settings.json file."""
-        print("_config_load")
+        """"Load Itho RFT Remote configuration from ./settings.json file."""
+
+        _LOGGER.debug("Itho RFT Remote load from ./settings.json")
 
         try:
             with open("settings.json", "r", encoding="utf8") as file:
@@ -92,17 +103,16 @@ class IthoRFTRemote:
                     "remote_address", self.remote_address
                 )
                 self.unit_address = settings.get("unit_address", self.unit_address)
-                print("Settings loaded")
+                _LOGGER.debug("Settings loaded")
         except FileNotFoundError:
-            print("Settings file does not exist")
+            _LOGGER.error("Settings file does not exist")
         except json.JSONDecodeError:
-            print("Settings file corrupt")
-        # except Exception as ex:
-        #     print(f"Settings load error: {ex}")
+            _LOGGER.error("Settings file corrupt")
 
     def _config_save(self):
-        """Store configuration to the settings.json file."""
-        print("_config_save")
+        """"Save Itho RFT Remote configuration to ./settings.json file."""
+
+        _LOGGER.debug("Itho RFT Remote saving to ./settings.json")
 
         settings = {
             "remote_address": self.remote_address,
@@ -114,8 +124,7 @@ class IthoRFTRemote:
             print("Settings saved")
 
     def _send_data(self, data):
-        """Send data to the dongle."""
-        # print("_send_data")
+        """"Send blocking data to evofw3 gateway."""
 
         if self.serial_connection:
             self.serial_connection.write(data.encode("utf-8"))
@@ -123,28 +132,17 @@ class IthoRFTRemote:
             raise IthoRemoteGatewayError("Gateway communication lost!") from Exception
 
     def _receive_data(self):
-        """Non-blocking read data from the dongle.
-        Read characters until a newline is received."""
-        # print("_receive_data")
+        """"Receive non-blocking data (until newline) from the evofw3 gateway."""
 
         if self.serial_connection:
             data = self.serial_connection.readline().decode().strip()
             return data if data else None
 
-            # count = self.serial_connection.inWaiting()
-            # self.buffer += self.serial_connection.read()
-            # print(f"{self.buffer} ({count})\r\n")
-            # if b"\n" in self.buffer:
-            #     data = self.buffer.decode().strip()
-            #     self.buffer = b""
-            #     return data
-
         else:
             raise IthoRemoteGatewayError("Gateway communication lost!") from Exception
 
     async def _loop_task(self):
-        """Periodic task to run IthoRemoteRFT."""
-        print("_loop_task")
+        """"Periodic task to run Itho RFT Remote."""
 
         regex_pattern = (
             "(?P<RSSI>\\d{3}) (?P<VERB> I|RQ|RP| W) (?P<SEQNR>---|\\d{3}) "
@@ -165,7 +163,7 @@ class IthoRFTRemote:
                         break  # No data available
 
                     # Process available data
-                    print(data)
+                    _LOGGER.debug(data)
 
                     # Log to file?
                     if self.log_to_file:
@@ -177,55 +175,60 @@ class IthoRFTRemote:
 
                     # Capture groups data using regex
                     match = re.match(regex_pattern, data)
-
                     if match:
+
                         # Handle pairing messages
                         # 072  I 022 --:------ --:------ 29:012345 1FC9 012 6322F87430390110E0743039
                         # 070 RQ --- 18:012345 29:012345 --:------ 10E0 001 63
                         if self.is_pairing:
                             if (
-                                match.group("VERB") == "RQ"
-                                and match.group("CODE") == "10E0"
-                                and match.group("ADDR2") == self.remote_address
-                                and match.group("PAYLOAD") == "63"
+                                    match.group("VERB") == "RQ"
+                                    and match.group("CODE") == "10E0"
+                                    and match.group("ADDR2") == self.remote_address
+                                    and match.group("PAYLOAD") == "63"
                             ):
                                 self.unit_address = match.group("ADDR1")
                                 self.is_pairing = False
-                                self._config_save()
-                                print("Pairing success")
+                                # self._config_save()
+                                _LOGGER.info("Pairing success")
+
+                                # Call pair callback
+                                if self.pair_callback is not None:
+                                    self.pair_callback(self.remote_address, self.unit_address)
 
                             if time.time() > self.pairing_timeout:
                                 self.unit_address = None
                                 self.is_pairing = False
-                                print("Pairing timeout")
+                                _LOGGER.warning("Pairing timeout")
 
                         # Handle status messages
                         # 069  I --- 18:012345 --:------ 18:012345 31DA
                         # 029 00F0007FFFEFEF0884079E085A07714000125850FF0000EFEF41E641E6
                         if self.unit_address is not None:
                             if (
-                                match.group("ADDR1") == self.unit_address
-                                and match.group("CODE") == "31DA"
+                                    match.group("ADDR1") == self.unit_address
+                                    and match.group("CODE") == "31DA"
                             ):
-                                print("loop: status message received")
+                                _LOGGER.debug("unit status message received")
+
                                 # Parse & Print
                                 payload = match.group("PAYLOAD")
                                 self._parse_status(payload)
                                 # Pretty print dictionary as json
                                 pretty_data = json.dumps(self.data, indent=4)
-                                print(pretty_data)
-                                # Call Data changed callback
+                                _LOGGER.debug(pretty_data)
+
+                                # Call data callback
                                 if self.data_callback is not None:
                                     self.data_callback(self.data)
 
         except asyncio.CancelledError:
-            print("_loop_task cancelled")
+            _LOGGER.warning("Itho RFT Remote task cancelled")
         finally:
             self.task = None
 
     def _parse_status(self, payload):
-        """Parse status messages into a dictionary."""
-        print("_parse_status")
+        """"Parse unit status messages."""
 
         pos = payload
 
@@ -326,7 +329,7 @@ class IthoRFTRemote:
             for i in range(16)
             if capability_flags_raw & (1 << (15 - i))
         ]
-        capability_flags = ", ".join(set_capabilities) + " Capable"
+        capability_flags = ", ".join(set_capabilities)
 
         # Parse bypass position (%)
         bypass_position_raw = int(pos[34:36], 16) / 2
@@ -401,10 +404,10 @@ class IthoRFTRemote:
         self.data = {
             "air_quality": air_quality,
             "quality_base": {
-                "Based on TH": quality_base_rh,
-                "Based on CO": quality_base_co,
-                "Based on VOC": quality_base_voc,
-                "Outdoor Improved": quality_base_outdoor_improved,
+                "th": quality_base_rh,
+                "co": quality_base_co,
+                "voc": quality_base_voc,
+                "outdoor_improved": quality_base_outdoor_improved,
             },
             "co2_level": co2_level,
             "outdoor_humidity": outdoor_humidity,
@@ -431,11 +434,10 @@ class IthoRFTRemote:
         }
 
     def self_test(self, minimal_version):
-        """Blocking self_test:
-        When the version number can be retrieved,
-        the dongle is operational.
-        """
-        print("self_test")
+        """"Blocking self-test Itho RFT Remote."""
+
+        # When the version number can be retrieved, the dongle is operational.
+        _LOGGER.debug("Itho RFT Remote evofw3 self-test")
 
         regex_version = "# evofw3 (?P<VERSION>\\d.\\d.\\d)"
 
@@ -447,57 +449,61 @@ class IthoRFTRemote:
             version_command = "!V\r\n"
             self.serial_connection.write(version_command.encode("utf-8"))
 
-            # Blocking read version number response with timeout
+            # TODO: Blocking read version number response with timeout
             self.serial_connection.timeout = 1  # Blocking readline
 
-            timeout = time.time() + 5
+            timeout = time.time() + TIMEOUT_SELF_TEST
             while time.time() < timeout:
                 data = self.serial_connection.readline().decode().strip()
                 match = re.match(regex_version, data)
                 if match:
                     version = match.group("VERSION")
                     if version >= minimal_version:
-                        print("evofw3 version-check OK: " + version)
-                        self.evofw3_version = version
+                        _LOGGER.debug("evofw3 version-check OK: " + version)
                     else:
-                        print("evofw3 version-check fail")
+                        _LOGGER.error("evofw3 version-check fail")
                         raise IthoRemoteGatewayError(
                             "Gateway communication fail!"
                         ) from Exception
                     break
 
             if time.time() >= timeout:
-                print("timeout")
+                _LOGGER.error("evofw3 version-check timeout")
 
         except serial.SerialException:
-            print("IthoRemoteRFT test serial fail")
             raise IthoRemoteGatewayError("Gateway communication fail!") from Exception
 
     # Public functions
+    def register_pair_callback(self, callback):
+        """"Register callback on Itho RFT Remote pairing success."""
+
+        self.pair_callback = callback
+
     def register_data_callback(self, callback):
-        """Callback to be called on data updates."""
+        """"Register callback on Itho RFT Remote data updates."""
+
         self.data_callback = callback
 
     def start_task(self):
-        """Starts the asyncio _loop task."""
-        print("start_task")
+        """"Starts Itho RFT Remote async task."""
+
         if self.task is None:
             self.task = asyncio.create_task(self._loop_task())
-            print("task is started")
+            _LOGGER.debug("Itho RFT Remote task started")
         else:
-            print("task is already running")
+            _LOGGER.warning("Itho RFT Remote task is already running")
 
     def stop_task(self):
-        """Stops the asyncio _loop task."""
+        """"Stops Itho RFT Remote async task."""
+
         if self.task:
             self.task.cancel()
-            print("task is stopped")
+            _LOGGER.debug("Itho RFT Remote task stopped")
         else:
-            print("task is already stopped")
+            _LOGGER.warning("Itho RFT Remote task is already stopped")
 
     def pair(self):
-        """Simulates pressing the pairing button."""
-        print("pair")
+        """"Starts Itho RFT Remote pairing procedure."""
 
         # Pair requires remote address in integer format
         convert = self.remote_address.split(":")
@@ -520,16 +526,15 @@ class IthoRFTRemote:
                 )
                 self._send_data(data)
                 time.sleep(0.5)
-                print("Command send: " + data)
+                _LOGGER.debug("Itho RFT Remote pairing command send: " + data)
 
             self.sequence_number += 1
-            self.pairing_timeout = time.time() + 60
+            self.pairing_timeout = time.time() + TIMEOUT_PAIRING
             self.is_pairing = True
-            print("Pairing pending")
+            _LOGGER.info("Itho RFT Remote pairing pending...")
 
     def command(self, command):
-        """Simulates pressing the command button(s)."""
-        print("command")
+        """"Sends Itho RFT Remote commands."""
 
         # Remote (536-0150)
         #             I 001 --:------ --:------ 29:012345 1FC9 012 6322F87430390110E0743039
@@ -550,36 +555,23 @@ class IthoRFTRemote:
         }
 
         if command in command_map:
-            # for _ in range(3):
-            #     data = (
-            #         f" I {self.sequence_number:03} --:------ --:------ {self.remote_address} "
-            #         f"{command_map[command]}\r\n"
-            #     )
-            #     self._send_data(data)
-            #     time.sleep(0.2)
-            #     print("command: " + data.strip())
-
-            # self.sequence_number += 1
-            # print("command: " + command_map[command])
-
             data = (
                 f" I {self.sequence_number:03} --:------ --:------ {self.remote_address} "
                 f"{command_map[command]}\r\n"
             )
             self._send_data(data)
-            print("command: " + data.strip())
-
             self.sequence_number += 1
-            print("command: " + command_map[command])
+            _LOGGER.debug("Itho RFT Remote {command} command send: " + data.strip())
 
         else:
-            print(
+            _LOGGER.warning(
                 "Invalid command. Supported commands: auto, low, high, timer10, timer20, timer30"
             )
 
     def request_data(self):
-        """Request 31DA data."""
-        print("request_data")
+        """"Requests Itho RFT Remote data [31DA]."""
+
+        # This is not a command supported by the original remote however this seems to work :)
 
         # Co2 sensor (04-00045)
         # 068 RQ --- 29:012345 18:012345 --:------ 31DA 001 00
@@ -588,4 +580,4 @@ class IthoRFTRemote:
 
         data = f"RQ --- {self.remote_address} {self.unit_address} --:------ 31DA 001 00\r\n"
         self._send_data(data)
-        print("request: " + data.strip())
+        _LOGGER.debug("Itho RFT Remote data request send: " + data.strip())
