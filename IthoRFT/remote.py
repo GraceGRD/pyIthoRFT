@@ -539,6 +539,7 @@ class IthoRFTRemote:
         # Remote (536-0150)
         #             I 001 --:------ --:------ 29:012345 1FC9 012 6322F87430390110E0743039
         # pair:     ' I 070 --:------ --:------ 29:012345 1FC9 012 6322F874EE110110E074EE11'
+        # night:    ' I 109 --:------ --:------ 29:060945 22F8 003 630203'
         # auto:     ' I 067 --:------ --:------ 29:012345 22F1 003 630304'
         # low:      ' I 063 --:------ --:------ 29:012345 22F1 003 630204'
         # high:     ' I 064 --:------ --:------ 29:012345 22F1 003 630404'
@@ -546,6 +547,7 @@ class IthoRFTRemote:
         # timer20:  ' I 059 --:------ --:------ 29:012345 22F3 003 630014'
         # timer30:  ' I 060 --:------ --:------ 29:012345 22F3 003 63001E'
         command_map = {
+            "night": "22F8 003 630203",
             "auto": "22F1 003 630304",
             "low": "22F1 003 630204",
             "high": "22F1 003 630404",
@@ -565,7 +567,7 @@ class IthoRFTRemote:
 
         else:
             _LOGGER.warning(
-                "Invalid command. Supported commands: auto, low, high, timer10, timer20, timer30"
+                "Invalid command. Supported commands: night, auto, low, high, timer10, timer20, timer30"
             )
 
     def request_data(self):
