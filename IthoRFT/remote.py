@@ -192,13 +192,14 @@ class IthoRFTRemote:
                                 # self._config_save()
                                 _LOGGER.info("Pairing success")
 
-                                # Call pair callback
+                                # Call pair callback (return remote and unit address on success)
                                 if self.pair_callback is not None:
                                     self.pair_callback(self.remote_address, self.unit_address)
 
                             if time.time() > self.pairing_timeout:
                                 self.unit_address = None
                                 self.is_pairing = False
+
                                 _LOGGER.warning("Pairing timeout")
 
                         # Handle status messages
