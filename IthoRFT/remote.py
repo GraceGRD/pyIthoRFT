@@ -469,6 +469,9 @@ class IthoRFTRemote:
 
             if time.time() >= timeout:
                 _LOGGER.error("evofw3 version-check timeout")
+                raise IthoRemoteGatewayError(
+                    "Gateway communication fail!"
+                ) from Exception
 
         except serial.SerialException:
             raise IthoRemoteGatewayError("Gateway communication fail!") from Exception
