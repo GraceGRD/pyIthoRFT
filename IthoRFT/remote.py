@@ -517,16 +517,14 @@ class IthoRFTRemote:
         # 071 RQ --- 18:012345 29:012345 --:------ 10E0 001 63
         # 068  I --- 18:012345 --:------ 18:012345 31DA 029
         #   00F0007FFFEFEF07CB07C5086E07994000C85850FF0000EFEF402E402E
-        if self.unit_address is not None:
-            # Send the pair command three times
-            for _ in range(3):
-                data = (
-                    f" I {self.sequence_number:03} --:------ --:------ {self.remote_address} "
-                    f"1FC9 012 6322F8{remote_address_int:X}0110E0{remote_address_int:X}\r\n"
-                )
-                self._send_data(data)
-                time.sleep(0.5)
-                _LOGGER.debug("Itho RFT Remote pairing command send: " + data)
+        if self.remote_address is not None:
+            # Send the pair command
+            data = (
+                f" I {self.sequence_number:03} --:------ --:------ {self.remote_address} "
+                f"1FC9 012 6322F8{remote_address_int:X}0110E0{remote_address_int:X}\r\n"
+            )
+            self._send_data(data)
+            _LOGGER.debug("Itho RFT Remote pairing command send: " + data)
 
             self.sequence_number += 1
             self.pairing_timeout = time.time() + TIMEOUT_PAIRING
