@@ -8,7 +8,7 @@ import re
 import json
 import serial
 
-from IthoRFT.const import TIMEOUT_SELF_TEST, TIMEOUT_PAIRING
+from IthoRFT.const import REQUIRED_EVOFW3_VERSION, TIMEOUT_SELF_TEST, TIMEOUT_PAIRING
 # from .const import TIMEOUT_SELF_TEST, TIMEOUT_PAIRING
 
 _LOGGER = logging.getLogger(__name__)
@@ -433,7 +433,7 @@ class IthoRFTRemote:
             "exhaust_flow": exhaust_flow,
         }
 
-    def self_test(self, minimal_version):
+    def self_test(self):
         """"Blocking self-test Itho RFT Remote."""
 
         # When the version number can be retrieved, the dongle is operational.
@@ -458,7 +458,7 @@ class IthoRFTRemote:
                 match = re.match(regex_version, data)
                 if match:
                     version = match.group("VERSION")
-                    if version >= minimal_version:
+                    if version >= REQUIRED_EVOFW3_VERSION:
                         _LOGGER.debug("evofw3 version-check OK: " + version)
                     else:
                         _LOGGER.error("evofw3 version-check fail")
