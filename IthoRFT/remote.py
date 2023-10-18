@@ -1,6 +1,7 @@
 """Itho RFT Remote."""
 import datetime
 import logging
+import os
 import random
 import asyncio
 import time
@@ -32,18 +33,21 @@ class IthoRFTRemote:
             port: str = "COM3",
             baud: int = 115200,
             remote_address: str | None = None,
-            unit_address: str | None = None
+            unit_address: str | None = None,
+            log_to_file: bool = False
     ):
         """Initialise the Itho RFT Remote connection.
         :param port: The port to access the evofw3 gateway.
         :param baud: The evofw3 baud rate.
         :param remote_address: The virtual address off the remote (if not provided a random address is generated).
-        :param unit_address: The unit address which is obtained during pairing."""
+        :param unit_address: The unit address which is obtained during pairing.
+        :param log_to_file: All data will be logged to remote.log file."""
 
         self.port = port
         self.baud = baud
         self.remote_address = remote_address
         self.unit_address = unit_address
+        self.log_to_file = log_to_file
 
         _LOGGER.debug(
             f"Itho RFT Remote initialized with the following settings:\n"
@@ -64,10 +68,6 @@ class IthoRFTRemote:
         # TODO: Sequence number is checked by the Itho machine!
         #  (000 is send after battery swap, so 0 should be fine)
         self.sequence_number = 0
-
-        # TODO TEMP Read remote_address and unit_address from config file.
-        self.log_to_file = True
-        # self._config_load()
 
         # Randomise Remote Address when not configured (e.g. 29:012345 & 0x743039)
         if self.remote_address is None:
@@ -123,6 +123,23 @@ class IthoRFTRemote:
             json.dump(settings, file, indent=4)
             print("Settings saved")
 
+    def _log_to_file(self, data):
+        """"Log data to itho_remote_<date>.log file and keep 7 day history."""
+
+        log_directory = os.getcwd()
+        logfile_date = datetime.datetime.now().strftime("%Y-%m-%d")
+        log_timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_filename = os.path.join(log_directory, f"itho_remote_{logfile_date}.log")
+
+        with open(log_filename, "a", encoding="utf8") as file:
+            file.write(f"{log_timestamp}: {data}\n")
+
+        log_files = sorted([file for file in os.listdir(log_directory) if
+                            file.endswith('.log') and file.startswith('itho_remote')])
+        if len(log_files) > 7:
+            for old_log_file in log_files[:-7]:
+                os.remove(os.path.join(log_directory, old_log_file))
+
     def _send_data(self, data):
         """"Send blocking data to evofw3 gateway."""
 
@@ -167,11 +184,7 @@ class IthoRFTRemote:
 
                     # Log to file?
                     if self.log_to_file:
-                        timestamp = datetime.datetime.now().strftime(
-                            "%Y-%m-%d %H:%M:%S.%f"
-                        )[:-3]
-                        with open("remote.log", "a", encoding="utf8") as file:
-                            file.write(f"{timestamp}: {data}\n")
+                        self._log_to_file(data)
 
                     # Capture groups data using regex
                     match = re.match(regex_pattern, data)
