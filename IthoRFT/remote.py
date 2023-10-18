@@ -190,6 +190,10 @@ class IthoRFTRemote:
                     match = re.match(regex_pattern, data)
                     if match:
 
+                        # Verify payload length
+                        if int(len(match.group("PAYLOAD")) / 2) != int(match.group("PAYLEN")):
+                            continue
+
                         # Handle pairing messages
                         # 072  I 022 --:------ --:------ 29:012345 1FC9 012 6322F87430390110E0743039
                         # 070 RQ --- 18:012345 29:012345 --:------ 10E0 001 63
