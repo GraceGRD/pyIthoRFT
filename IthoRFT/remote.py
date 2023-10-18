@@ -57,7 +57,7 @@ class IthoRFTRemote:
         self.task = None
         self.data_callback = None
         self.pair_callback = None
-        self.data = []
+        self.data = {}
         self.is_pairing = False
         self.pairing_timeout = 0
 
