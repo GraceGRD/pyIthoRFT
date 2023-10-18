@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyIthoRFT"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
   { name="GraceGRD", email="123941606+GraceGRD@users.noreply.github.com" },
 ]
