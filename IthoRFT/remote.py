@@ -395,11 +395,11 @@ class IthoRFTRemote:
         pre_heater_raw = int(pos[48:50], 16) / 2
         pre_heater = pre_heater_raw if 0.0 <= pre_heater_raw <= 100.0 else None
 
-        # Parse flow inlet/exhaust (l/s)
+        # Parse flow inlet/exhaust (m3/h)
         inlet_flow_raw = int(pos[50:54], 16)
-        inlet_flow = inlet_flow_raw if 0 <= inlet_flow_raw <= 0x7FFF else None
+        inlet_flow = inlet_flow_raw / 100.0 if 0 <= inlet_flow_raw <= 0x7FFF else None
         exhaust_flow_raw = int(pos[54:58], 16)
-        exhaust_flow = exhaust_flow_raw if 0 <= exhaust_flow_raw <= 0x7FFF else None
+        exhaust_flow = exhaust_flow_raw / 100.0 if 0 <= exhaust_flow_raw <= 0x7FFF else None
 
         # Dictionary
         self.data = {
