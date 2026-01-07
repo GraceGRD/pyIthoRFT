@@ -71,7 +71,7 @@ class IthoRFTRemote:
 
         # Randomise Remote Address when not configured (e.g. 29:012345 & 0x743039)
         if self.remote_address is None:
-            self.remote_address = f"29:{random.randint(0, 999999):06d}"
+            self.remote_address = f"29:{random.randint(0, 0x3FFFF):06d}"
 
         unit_address_info = (
             f"Remote paired to: {self.unit_address}"
